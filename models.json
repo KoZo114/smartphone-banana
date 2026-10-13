@@ -1,11 +1,515 @@
 [
   {
+    "id": "gpt-image-2.5-sunburst",
+    "label": "GPT Image 2.5 Sunburst",
+    "provider": "fal",
+    "model": "openai/gpt-image-2.5/sunburst",
+    "timeoutSec": 420,
+    "modes": {
+      "text": {
+        "endpoint": "https://queue.fal.run/openai/gpt-image-2.5/sunburst/text-to-image"
+      },
+      "edit": {
+        "endpoint": "https://queue.fal.run/openai/gpt-image-2.5/sunburst/edit"
+      }
+    },
+    "imageParam": "image_urls",
+    "maxImages": 4,
+    "inputs": [
+      {
+        "key": "prompt",
+        "label": "Prompt",
+        "type": "text"
+      },
+      {
+        "key": "num_images",
+        "label": "Images",
+        "type": "select",
+        "options": [
+          {
+            "label": "1",
+            "value": 1,
+            "default": true
+          },
+          {
+            "label": "2",
+            "value": 2
+          },
+          {
+            "label": "3",
+            "value": 3
+          },
+          {
+            "label": "4",
+            "value": 4
+          }
+        ]
+      },
+      {
+        "key": "image_size",
+        "label": "Image Size",
+        "type": "select",
+        "options": [
+          {
+            "label": "auto（おまかせ）",
+            "value": "auto"
+          },
+          {
+            "label": "正方形 HD",
+            "value": "square_hd"
+          },
+          {
+            "label": "正方形",
+            "value": "square"
+          },
+          {
+            "label": "縦 3:4",
+            "value": "portrait_4_3",
+            "default": true
+          },
+          {
+            "label": "縦 9:16",
+            "value": "portrait_16_9"
+          },
+          {
+            "label": "横 4:3",
+            "value": "landscape_4_3"
+          },
+          {
+            "label": "横 16:9",
+            "value": "landscape_16_9"
+          }
+        ]
+      },
+      {
+        "key": "quality",
+        "label": "Quality",
+        "type": "select",
+        "options": [
+          {
+            "label": "low",
+            "value": "low"
+          },
+          {
+            "label": "medium",
+            "value": "medium",
+            "default": true
+          },
+          {
+            "label": "high",
+            "value": "high"
+          },
+          {
+            "label": "xhigh",
+            "value": "xhigh"
+          },
+          {
+            "label": "max",
+            "value": "max"
+          }
+        ]
+      },
+      {
+        "key": "background",
+        "label": "Background",
+        "type": "select",
+        "options": [
+          {
+            "label": "自動",
+            "value": "auto",
+            "default": true
+          },
+          {
+            "label": "透過（PNG/WebPのみ）",
+            "value": "transparent"
+          },
+          {
+            "label": "不透明",
+            "value": "opaque"
+          }
+        ]
+      },
+      {
+        "key": "output_format",
+        "label": "Format",
+        "type": "select",
+        "options": [
+          {
+            "label": "PNG",
+            "value": "png",
+            "default": true
+          },
+          {
+            "label": "JPEG",
+            "value": "jpeg"
+          },
+          {
+            "label": "WebP",
+            "value": "webp"
+          }
+        ]
+      }
+    ],
+    "defaults": {
+      "num_images": 1,
+      "image_size": "portrait_4_3",
+      "quality": "medium",
+      "background": "auto",
+      "output_format": "png"
+    },
+    "editDefaults": {
+      "image_size": "auto"
+    },
+    "output": "image"
+  },
+  {
+    "id": "gpt-image-2.5-flare",
+    "label": "GPT Image 2.5 Flare",
+    "provider": "fal",
+    "model": "openai/gpt-image-2.5/flare",
+    "timeoutSec": 300,
+    "modes": {
+      "text": {
+        "endpoint": "https://queue.fal.run/openai/gpt-image-2.5/flare/text-to-image"
+      },
+      "edit": {
+        "endpoint": "https://queue.fal.run/openai/gpt-image-2.5/flare/edit"
+      }
+    },
+    "imageParam": "image_urls",
+    "maxImages": 4,
+    "inputs": [
+      {
+        "key": "prompt",
+        "label": "Prompt",
+        "type": "text"
+      },
+      {
+        "key": "num_images",
+        "label": "Images",
+        "type": "select",
+        "options": [
+          {
+            "label": "1",
+            "value": 1,
+            "default": true
+          },
+          {
+            "label": "2",
+            "value": 2
+          },
+          {
+            "label": "3",
+            "value": 3
+          },
+          {
+            "label": "4",
+            "value": 4
+          }
+        ]
+      },
+      {
+        "key": "image_size",
+        "label": "Image Size",
+        "type": "select",
+        "options": [
+          {
+            "label": "auto（おまかせ）",
+            "value": "auto"
+          },
+          {
+            "label": "正方形 HD",
+            "value": "square_hd"
+          },
+          {
+            "label": "正方形",
+            "value": "square"
+          },
+          {
+            "label": "縦 3:4",
+            "value": "portrait_4_3",
+            "default": true
+          },
+          {
+            "label": "縦 9:16",
+            "value": "portrait_16_9"
+          },
+          {
+            "label": "横 4:3",
+            "value": "landscape_4_3"
+          },
+          {
+            "label": "横 16:9",
+            "value": "landscape_16_9"
+          }
+        ]
+      },
+      {
+        "key": "quality",
+        "label": "Quality",
+        "type": "select",
+        "options": [
+          {
+            "label": "low",
+            "value": "low"
+          },
+          {
+            "label": "medium",
+            "value": "medium",
+            "default": true
+          },
+          {
+            "label": "high",
+            "value": "high"
+          },
+          {
+            "label": "xhigh",
+            "value": "xhigh"
+          },
+          {
+            "label": "max",
+            "value": "max"
+          }
+        ]
+      },
+      {
+        "key": "background",
+        "label": "Background",
+        "type": "select",
+        "options": [
+          {
+            "label": "自動",
+            "value": "auto",
+            "default": true
+          },
+          {
+            "label": "透過（PNG/WebPのみ）",
+            "value": "transparent"
+          },
+          {
+            "label": "不透明",
+            "value": "opaque"
+          }
+        ]
+      },
+      {
+        "key": "output_format",
+        "label": "Format",
+        "type": "select",
+        "options": [
+          {
+            "label": "PNG",
+            "value": "png",
+            "default": true
+          },
+          {
+            "label": "JPEG",
+            "value": "jpeg"
+          },
+          {
+            "label": "WebP",
+            "value": "webp"
+          }
+        ]
+      }
+    ],
+    "defaults": {
+      "num_images": 1,
+      "image_size": "portrait_4_3",
+      "quality": "medium",
+      "background": "auto",
+      "output_format": "png"
+    },
+    "editDefaults": {
+      "image_size": "auto"
+    },
+    "output": "image"
+  },
+  {
+    "id": "seedance-2.5",
+    "label": "🎬 Seedance 2.5（動画）",
+    "provider": "fal",
+    "model": "bytedance/seedance-2.5/image-to-video",
+    "timeoutSec": 1200,
+    "modes": {
+      "edit": {
+        "endpoint": "https://queue.fal.run/bytedance/seedance-2.5/image-to-video"
+      }
+    },
+    "requiresImage": true,
+    "imageParam": "image_url",
+    "maxImages": 1,
+    "inputs": [
+      {
+        "key": "prompt",
+        "label": "Prompt",
+        "type": "text"
+      },
+      {
+        "key": "duration",
+        "label": "Duration",
+        "type": "select",
+        "options": [
+          {
+            "label": "4秒",
+            "value": "4"
+          },
+          {
+            "label": "5秒",
+            "value": "5",
+            "default": true
+          },
+          {
+            "label": "8秒",
+            "value": "8"
+          },
+          {
+            "label": "10秒",
+            "value": "10"
+          },
+          {
+            "label": "15秒",
+            "value": "15"
+          },
+          {
+            "label": "30秒",
+            "value": "30"
+          }
+        ]
+      },
+      {
+        "key": "resolution",
+        "label": "Resolution",
+        "type": "select",
+        "options": [
+          {
+            "label": "480p",
+            "value": "480p",
+            "default": true
+          },
+          {
+            "label": "720p",
+            "value": "720p"
+          },
+          {
+            "label": "1080p",
+            "value": "1080p"
+          }
+        ]
+      },
+      {
+        "key": "generate_audio",
+        "label": "Audio",
+        "type": "select",
+        "options": [
+          {
+            "label": "あり",
+            "value": true,
+            "default": true
+          },
+          {
+            "label": "なし",
+            "value": false
+          }
+        ]
+      }
+    ],
+    "defaults": {
+      "duration": "5",
+      "resolution": "480p",
+      "generate_audio": true
+    },
+    "pricePerSecond": {
+      "480p": 0.2205,
+      "720p": 0.473,
+      "1080p": 1.164
+    },
+    "output": "video"
+  },
+  {
+    "id": "minimax-h3-max",
+    "label": "🎬 MiniMax H3 Max（動画）",
+    "provider": "fal",
+    "model": "minimax/h3-max/image-to-video",
+    "timeoutSec": 1200,
+    "modes": {
+      "text": {
+        "endpoint": "https://queue.fal.run/minimax/h3-max/image-to-video"
+      },
+      "edit": {
+        "endpoint": "https://queue.fal.run/minimax/h3-max/image-to-video"
+      }
+    },
+    "imageParam": "image_url",
+    "maxImages": 1,
+    "inputs": [
+      {
+        "key": "prompt",
+        "label": "Prompt",
+        "type": "text"
+      },
+      {
+        "key": "duration",
+        "label": "Duration",
+        "type": "select",
+        "options": [
+          {
+            "label": "3秒",
+            "value": 3
+          },
+          {
+            "label": "5秒",
+            "value": 5,
+            "default": true
+          },
+          {
+            "label": "8秒",
+            "value": 8
+          },
+          {
+            "label": "10秒",
+            "value": 10
+          }
+        ]
+      },
+      {
+        "key": "resolution",
+        "label": "Resolution",
+        "type": "select",
+        "options": [
+          {
+            "label": "480P",
+            "value": "480P"
+          },
+          {
+            "label": "768P",
+            "value": "768P",
+            "default": true
+          },
+          {
+            "label": "1080P",
+            "value": "1080P"
+          }
+        ]
+      }
+    ],
+    "defaults": {
+      "duration": 5,
+      "resolution": "768P",
+      "prompt_expansion_mode": "balanced"
+    },
+    "pricePerSecond": {
+      "480P": 0.05,
+      "768P": 0.08,
+      "1080P": 0.16
+    },
+    "output": "video"
+  },
+  {
     "id": "nano-banana-pro",
     "label": "Nano Banana Pro",
     "provider": "fal",
     "model": "fal-ai/nano-banana-pro",
-    "reference": "../reference/20251121_fal-ai_nano-banana-pro.txt",
-    "editReference": "../reference/20251121_fal-ai_nano-banana-pro_edit.txt",
     "timeoutSec": 300,
     "modes": {
       "text": {
@@ -26,10 +530,23 @@
         "label": "Images",
         "type": "select",
         "options": [
-          { "label": "1", "value": 1, "default": true },
-          { "label": "2", "value": 2 },
-          { "label": "3", "value": 3 },
-          { "label": "4", "value": 4 }
+          {
+            "label": "1",
+            "value": 1,
+            "default": true
+          },
+          {
+            "label": "2",
+            "value": 2
+          },
+          {
+            "label": "3",
+            "value": 3
+          },
+          {
+            "label": "4",
+            "value": 4
+          }
         ]
       },
       {
@@ -37,16 +554,47 @@
         "label": "Aspect Ratio",
         "type": "select",
         "options": [
-          { "label": "1:1", "value": "1:1", "default": true },
-          { "label": "16:9", "value": "16:9" },
-          { "label": "9:16", "value": "9:16" },
-          { "label": "4:3", "value": "4:3" },
-          { "label": "3:4", "value": "3:4" },
-          { "label": "21:9", "value": "21:9" },
-          { "label": "3:2", "value": "3:2" },
-          { "label": "2:3", "value": "2:3" },
-          { "label": "5:4", "value": "5:4" },
-          { "label": "4:5", "value": "4:5" }
+          {
+            "label": "1:1",
+            "value": "1:1",
+            "default": true
+          },
+          {
+            "label": "16:9",
+            "value": "16:9"
+          },
+          {
+            "label": "9:16",
+            "value": "9:16"
+          },
+          {
+            "label": "4:3",
+            "value": "4:3"
+          },
+          {
+            "label": "3:4",
+            "value": "3:4"
+          },
+          {
+            "label": "21:9",
+            "value": "21:9"
+          },
+          {
+            "label": "3:2",
+            "value": "3:2"
+          },
+          {
+            "label": "2:3",
+            "value": "2:3"
+          },
+          {
+            "label": "5:4",
+            "value": "5:4"
+          },
+          {
+            "label": "4:5",
+            "value": "4:5"
+          }
         ]
       },
       {
@@ -54,9 +602,19 @@
         "label": "Resolution",
         "type": "select",
         "options": [
-          { "label": "1K", "value": "1K", "default": true },
-          { "label": "2K", "value": "2K" },
-          { "label": "4K", "value": "4K" }
+          {
+            "label": "1K",
+            "value": "1K",
+            "default": true
+          },
+          {
+            "label": "2K",
+            "value": "2K"
+          },
+          {
+            "label": "4K",
+            "value": "4K"
+          }
         ]
       },
       {
@@ -64,9 +622,19 @@
         "label": "Format",
         "type": "select",
         "options": [
-          { "label": "PNG", "value": "png", "default": true },
-          { "label": "JPEG", "value": "jpeg" },
-          { "label": "WebP", "value": "webp" }
+          {
+            "label": "PNG",
+            "value": "png",
+            "default": true
+          },
+          {
+            "label": "JPEG",
+            "value": "jpeg"
+          },
+          {
+            "label": "WebP",
+            "value": "webp"
+          }
         ]
       }
     ],
@@ -80,15 +648,15 @@
     "editDefaults": {
       "aspect_ratio": "auto"
     },
-    "output": "image"
+    "output": "image",
+    "imageParam": "image_urls",
+    "maxImages": 4
   },
   {
     "id": "nano-banana-2",
     "label": "Nano Banana 2",
     "provider": "fal",
     "model": "fal-ai/nano-banana-2",
-    "reference": "../reference/20260227_fal-ai_nano-banana-2.txt",
-    "editReference": "../reference/20260227_fal-ai_nano-banana-2_edit.txt",
     "timeoutSec": 300,
     "modes": {
       "text": {
@@ -109,10 +677,23 @@
         "label": "Images",
         "type": "select",
         "options": [
-          { "label": "1", "value": 1, "default": true },
-          { "label": "2", "value": 2 },
-          { "label": "3", "value": 3 },
-          { "label": "4", "value": 4 }
+          {
+            "label": "1",
+            "value": 1,
+            "default": true
+          },
+          {
+            "label": "2",
+            "value": 2
+          },
+          {
+            "label": "3",
+            "value": 3
+          },
+          {
+            "label": "4",
+            "value": 4
+          }
         ]
       },
       {
@@ -120,17 +701,51 @@
         "label": "Aspect Ratio",
         "type": "select",
         "options": [
-          { "label": "auto", "value": "auto", "default": true },
-          { "label": "1:1", "value": "1:1" },
-          { "label": "16:9", "value": "16:9" },
-          { "label": "9:16", "value": "9:16" },
-          { "label": "4:3", "value": "4:3" },
-          { "label": "3:4", "value": "3:4" },
-          { "label": "21:9", "value": "21:9" },
-          { "label": "3:2", "value": "3:2" },
-          { "label": "2:3", "value": "2:3" },
-          { "label": "5:4", "value": "5:4" },
-          { "label": "4:5", "value": "4:5" }
+          {
+            "label": "auto",
+            "value": "auto",
+            "default": true
+          },
+          {
+            "label": "1:1",
+            "value": "1:1"
+          },
+          {
+            "label": "16:9",
+            "value": "16:9"
+          },
+          {
+            "label": "9:16",
+            "value": "9:16"
+          },
+          {
+            "label": "4:3",
+            "value": "4:3"
+          },
+          {
+            "label": "3:4",
+            "value": "3:4"
+          },
+          {
+            "label": "21:9",
+            "value": "21:9"
+          },
+          {
+            "label": "3:2",
+            "value": "3:2"
+          },
+          {
+            "label": "2:3",
+            "value": "2:3"
+          },
+          {
+            "label": "5:4",
+            "value": "5:4"
+          },
+          {
+            "label": "4:5",
+            "value": "4:5"
+          }
         ]
       },
       {
@@ -138,10 +753,23 @@
         "label": "Resolution",
         "type": "select",
         "options": [
-          { "label": "0.5K", "value": "0.5K" },
-          { "label": "1K", "value": "1K", "default": true },
-          { "label": "2K", "value": "2K" },
-          { "label": "4K", "value": "4K" }
+          {
+            "label": "0.5K",
+            "value": "0.5K"
+          },
+          {
+            "label": "1K",
+            "value": "1K",
+            "default": true
+          },
+          {
+            "label": "2K",
+            "value": "2K"
+          },
+          {
+            "label": "4K",
+            "value": "4K"
+          }
         ]
       },
       {
@@ -149,9 +777,19 @@
         "label": "Format",
         "type": "select",
         "options": [
-          { "label": "PNG", "value": "png", "default": true },
-          { "label": "JPEG", "value": "jpeg" },
-          { "label": "WebP", "value": "webp" }
+          {
+            "label": "PNG",
+            "value": "png",
+            "default": true
+          },
+          {
+            "label": "JPEG",
+            "value": "jpeg"
+          },
+          {
+            "label": "WebP",
+            "value": "webp"
+          }
         ]
       }
     ],
@@ -164,88 +802,8 @@
       "limit_generations": true,
       "sync_mode": false
     },
-    "output": "image"
-  },
-  {
-    "id": "gpt-image-2",
-    "label": "GPT Image 2",
-    "provider": "fal",
-    "model": "openai/gpt-image-2",
-    "reference": "../reference/20260422_openai_gpt-image-2.txt",
-    "editReference": "../reference/20260422_openai_gpt-image-2_edit.txt",
-    "timeoutSec": 300,
-    "modes": {
-      "text": {
-        "endpoint": "https://queue.fal.run/openai/gpt-image-2",
-        "streamEndpoint": "https://fal.run/openai/gpt-image-2/stream"
-      },
-      "edit": {
-        "endpoint": "https://queue.fal.run/openai/gpt-image-2/edit",
-        "streamEndpoint": "https://fal.run/openai/gpt-image-2/edit/stream"
-      }
-    },
-    "inputs": [
-      {
-        "key": "prompt",
-        "label": "Prompt",
-        "type": "text"
-      },
-      {
-        "key": "num_images",
-        "label": "Images",
-        "type": "select",
-        "options": [
-          { "label": "1", "value": 1, "default": true },
-          { "label": "2", "value": 2 },
-          { "label": "3", "value": 3 },
-          { "label": "4", "value": 4 }
-        ]
-      },
-      {
-        "key": "image_size",
-        "label": "Image Size",
-        "type": "select",
-        "options": [
-          { "label": "square_hd", "value": "square_hd" },
-          { "label": "square", "value": "square" },
-          { "label": "portrait_4_3", "value": "portrait_4_3" },
-          { "label": "portrait_16_9", "value": "portrait_16_9" },
-          { "label": "landscape_4_3", "value": "landscape_4_3", "default": true },
-          { "label": "landscape_16_9", "value": "landscape_16_9" },
-          { "label": "auto", "value": "auto", "editOnly": true }
-        ]
-      },
-      {
-        "key": "quality",
-        "label": "Quality",
-        "type": "select",
-        "options": [
-          { "label": "low", "value": "low" },
-          { "label": "mid", "value": "medium", "default": true },
-          { "label": "high", "value": "high" }
-        ]
-      },
-      {
-        "key": "output_format",
-        "label": "Format",
-        "type": "select",
-        "options": [
-          { "label": "PNG", "value": "png", "default": true },
-          { "label": "JPEG", "value": "jpeg" },
-          { "label": "WebP", "value": "webp" }
-        ]
-      }
-    ],
-    "defaults": {
-      "num_images": 1,
-      "image_size": "landscape_4_3",
-      "quality": "medium",
-      "output_format": "png",
-      "sync_mode": false
-    },
-    "editDefaults": {
-      "image_size": "auto"
-    },
-    "output": "image"
+    "output": "image",
+    "imageParam": "image_urls",
+    "maxImages": 4
   }
 ]

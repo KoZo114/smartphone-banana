@@ -244,8 +244,76 @@ const modelInputSelects = {
     resolution: resolutionSelect,
     image_size: imageSizeSelect,
     quality: qualitySelect,
+    background: document.getElementById('background'),
+    duration: document.getElementById('duration'),
+    generate_audio: document.getElementById('generate_audio'),
     output_format: outputFormatSelect
 };
+
+// Save the newer settings (background / duration / audio) when changed
+['background', 'duration', 'generate_audio'].forEach(key => {
+    const el = modelInputSelects[key];
+    if (el) {
+        el.addEventListener('change', () => {
+            localStorage.setItem(key, el.value);
+            updateCostHint();
+        });
+    }
+});
+
+// Max number of reference images for the selected model
+function getMaxImages(model = getSelectedModelDefinition()) {
+    return (model && model.maxImages) || 4;
+}
+
+function isVideoModel(model = getSelectedModelDefinition()) {
+    return !!model && model.output === 'video';
+}
+
+// Rough cost estimate for video models (pricePerSecond × duration)
+function estimateVideoCost(model) {
+    if (!isVideoModel(model) || !model.pricePerSecond) return null;
+    const durationEl = modelInputSelects.duration;
+    const resolutionEl = modelInputSelects.resolution;
+    const seconds = parseFloat(durationEl && !durationEl.disabled ? durationEl.value : model.defaults?.duration);
+    const resolution = resolutionEl && !resolutionEl.disabled ? resolutionEl.value : model.defaults?.resolution;
+    const rate = model.pricePerSecond[resolution];
+    if (!rate || !seconds) return null;
+    return { seconds, resolution, cost: rate * seconds };
+}
+
+function updateCostHint() {
+    const hint = document.getElementById('costHint');
+    if (!hint) return;
+    const model = getSelectedModelDefinition();
+    const estimate = estimateVideoCost(model);
+    if (estimate) {
+        hint.textContent = `💰 目安: 約$${estimate.cost.toFixed(2)}（${estimate.resolution}・${estimate.seconds}秒）`;
+        hint.style.display = '';
+    } else {
+        hint.textContent = '';
+        hint.style.display = 'none';
+    }
+
+    const note = document.getElementById('modelNote');
+    if (note) {
+        if (model && model.requiresImage) {
+            note.textContent = 'このモデルは参照画像が1枚必要です（その画像が動画の1コマ目になります）';
+            note.style.display = '';
+        } else if (isVideoModel(model)) {
+            note.textContent = '参照画像を1枚入れると、その画像から動画を作ります（なしでも可）';
+            note.style.display = '';
+        } else {
+            note.textContent = '';
+            note.style.display = 'none';
+        }
+    }
+
+    const btnTextEl = document.querySelector('.btn-text');
+    if (btnTextEl) {
+        btnTextEl.textContent = isVideoModel(model) ? '利用規約に同意して動画生成' : '利用規約に同意して画像生成';
+    }
+}
 
 function getDefaultOptionValue(input) {
     if (!input || !input.options || input.options.length === 0) return '';
@@ -359,6 +427,16 @@ function updateModelDependentOptions() {
             updateSelectFromModel(selectElement, input, mode, defaultValue, preferDefault);
         }
     });
+
+    updateCostHint();
+}
+
+// Convert a select's string value back to the type written in models.json
+function getTypedInputValue(input, rawValue) {
+    const match = (input.options || []).find(option => String(option.value) === rawValue);
+    if (match) return match.value;
+    if (input.key === 'num_images') return parseInt(rawValue, 10);
+    return rawValue;
 }
 
 function buildRequestParams(model, prompt, useEditMode) {
@@ -378,14 +456,13 @@ function buildRequestParams(model, prompt, useEditMode) {
         const selectElement = modelInputSelects[input.key];
         if (!selectElement || selectElement.disabled) return;
 
-        let value = selectElement.value;
-        if (input.key === 'num_images') {
-            value = parseInt(value, 10);
-        }
-        params[input.key] = value;
+        params[input.key] = getTypedInputValue(input, selectElement.value);
     });
 
-    params.sync_mode = false;
+    // Video models return a CDN URL by default; only image models get sync_mode
+    if (!isVideoModel(model)) {
+        params.sync_mode = false;
+    }
     return params;
 }
 
@@ -762,6 +839,7 @@ if (aspectRatioSelect) {
 if (resolutionSelect) {
     resolutionSelect.addEventListener('change', () => {
         localStorage.setItem('resolution', resolutionSelect.value);
+        updateCostHint();
     });
 }
 
@@ -786,7 +864,8 @@ if (outputFormatSelect) {
 if (modelSelect) {
     modelSelect.addEventListener('change', () => {
         localStorage.setItem('selected_model', modelSelect.value);
-        updateModelDependentOptions();
+        // Re-draw the reference grid so the per-model image limit applies
+        updateImagePreview();
     });
 }
 
@@ -1048,7 +1127,7 @@ function saveOutputImages(images) {
 // ========== Generation State Persistence Functions ==========
 
 // Save generation state when request is submitted
-function saveGenerationState(requestId, statusUrl, resultUrl, params, useEditMode) {
+function saveGenerationState(requestId, statusUrl, resultUrl, params, useEditMode, model = getSelectedModelDefinition()) {
     const state = {
         requestId,
         statusUrl,
@@ -1062,7 +1141,9 @@ function saveGenerationState(requestId, statusUrl, resultUrl, params, useEditMod
         referenceImageCount: uploadedImages.length,  // Just store the count for reference
         params,
         useEditMode,
-        modelName: modelSelect ? modelSelect.value : 'nano-banana-pro'
+        modelName: model ? model.id : (modelSelect ? modelSelect.value : 'nano-banana-pro'),
+        timeoutSec: (model && model.timeoutSec) || 300,
+        output: (model && model.output) || 'image'
     };
 
     localStorage.setItem('generation_state', JSON.stringify(state));
@@ -1118,11 +1199,13 @@ async function resumeGenerationPolling(state) {
     }
 
     console.log('Resuming generation polling for request:', state.requestId);
-    showStatus('前回の画像生成を再開しています...', 'info');
+    showStatus(state.output === 'video' ? '前回の動画生成を再開しています...' : '前回の画像生成を再開しています...', 'info');
 
     try {
         let attempts = 0;
-        const maxAttempts = 60;
+        // Count from when the request was first sent, so we don't wait forever
+        const elapsedPolls = Math.floor((Date.now() - state.timestamp) / 5000);
+        const maxAttempts = Math.max(12, Math.ceil((state.timeoutSec || 300) / 5) - elapsedPolls);
 
         while (attempts < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second wait
@@ -1239,18 +1322,37 @@ function isIOS() {
            (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
 }
 
-// Display saved output images (on page load)
-function displaySavedOutputImages(images) {
+// Pick a download file name with the right extension
+function getOutputFileName(item, index) {
+    if (item.file_name) return item.file_name;
+    const ext = item.type === 'video' ? 'mp4' : 'png';
+    return `banana-${Date.now()}-${index}.${ext}`;
+}
+
+// Draw generated images / videos into the results area
+function renderOutputItems(items) {
     resultsDiv.innerHTML = '';
 
-    images.forEach((image, index) => {
+    items.forEach((item, index) => {
+        const isVideo = item.type === 'video';
         const resultItem = document.createElement('div');
         resultItem.className = 'result-item';
 
-        const img = document.createElement('img');
-        img.src = image.url;
-        img.alt = `Generated image ${index + 1}`;
-        img.loading = 'lazy';
+        let media;
+        if (isVideo) {
+            media = document.createElement('video');
+            media.src = item.url;
+            media.controls = true;
+            media.playsInline = true;
+            media.loop = true;
+            media.preload = 'metadata';
+            media.className = 'result-video';
+        } else {
+            media = document.createElement('img');
+            media.src = item.url;
+            media.alt = `Generated image ${index + 1}`;
+            media.loading = 'lazy';
+        }
 
         const actions = document.createElement('div');
         actions.className = 'result-actions';
@@ -1262,19 +1364,19 @@ function displaySavedOutputImages(images) {
         downloadLink.onclick = async (e) => {
             e.preventDefault();
             try {
-                const response = await fetch(image.url);
+                const response = await fetch(item.url);
                 const blob = await response.blob();
                 const blobUrl = URL.createObjectURL(blob);
                 const tempLink = document.createElement('a');
                 tempLink.href = blobUrl;
-                tempLink.download = image.file_name || `banana-${Date.now()}-${index}.png`;
+                tempLink.download = getOutputFileName(item, index);
                 document.body.appendChild(tempLink);
                 tempLink.click();
                 document.body.removeChild(tempLink);
                 setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
             } catch (error) {
                 console.error('Download failed:', error);
-                window.open(image.url, '_blank');
+                window.open(item.url, '_blank');
             }
         };
 
@@ -1285,18 +1387,14 @@ function displaySavedOutputImages(images) {
         shareBtn.onclick = async (e) => {
             e.preventDefault();
             try {
-                const response = await fetch(image.url);
+                const response = await fetch(item.url);
                 const blob = await response.blob();
-                const file = new File([blob], image.file_name || `banana-${Date.now()}-${index}.png`, { type: blob.type });
+                const file = new File([blob], getOutputFileName(item, index), { type: blob.type });
 
                 if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                    });
+                    await navigator.share({ files: [file] });
                 } else if (navigator.share) {
-                    await navigator.share({
-                        url: image.url
-                    });
+                    await navigator.share({ url: item.url });
                 } else {
                     showStatus('この端末では共有機能が使えません', 'error');
                     setTimeout(() => clearStatus(), 2000);
@@ -1313,18 +1411,25 @@ function displaySavedOutputImages(images) {
         actions.appendChild(downloadLink);
         actions.appendChild(shareBtn);
 
-        // iOS hint for saving images
+        // iOS hint for saving
         if (isIOS()) {
             const iosHint = document.createElement('div');
             iosHint.className = 'ios-save-hint';
-            iosHint.textContent = '💡 iPhoneは画像を長押しで保存';
+            iosHint.textContent = isVideo
+                ? '💡 iPhoneは「共有」→「ビデオを保存」で保存'
+                : '💡 iPhoneは画像を長押しで保存';
             actions.appendChild(iosHint);
         }
 
-        resultItem.appendChild(img);
+        resultItem.appendChild(media);
         resultItem.appendChild(actions);
         resultsDiv.appendChild(resultItem);
     });
+}
+
+// Display saved output images / videos (on page load)
+function displaySavedOutputImages(images) {
+    renderOutputItems(images);
 }
 
 // Render official library images
@@ -1357,8 +1462,8 @@ function renderOfficialLibrary() {
 
 // Add official library image to reference images
 async function addOfficialImageToReference(filename) {
-    if (uploadedImages.length >= 4) {
-        showStatus('参照画像は最大4枚までです', 'error');
+    if (uploadedImages.length >= getMaxImages()) {
+        showStatus(`このモデルの参照画像は最大${getMaxImages()}枚までです`, 'error');
         return;
     }
 
@@ -1456,8 +1561,8 @@ function removeLibraryImage(index) {
 
 // Add library image to reference images
 function addLibraryImageToReference(index) {
-    if (uploadedImages.length >= 4) {
-        showStatus('参照画像は最大4枚までです', 'error');
+    if (uploadedImages.length >= getMaxImages()) {
+        showStatus(`このモデルの参照画像は最大${getMaxImages()}枚までです`, 'error');
         setTimeout(() => clearStatus(), 2000);
         return;
     }
@@ -1522,7 +1627,7 @@ function clearStatus() {
 // Image upload handlers - using capture phase to prevent bubbling issues
 if (uploadDropZone && imageFileInput) {
     uploadDropZone.addEventListener('click', () => {
-        if (uploadedImages.length < 4) {
+        if (uploadedImages.length < getMaxImages()) {
             imageFileInput.click();
         }
     });
@@ -1554,10 +1659,10 @@ if (cameraBtn && cameraFileInput) {
         e.preventDefault();
         e.stopPropagation();
 
-        if (uploadedImages.length < 4) {
+        if (uploadedImages.length < getMaxImages()) {
             cameraFileInput.click();
         } else {
-            showStatus('参照画像は最大4枚までです', 'error');
+            showStatus(`このモデルの参照画像は最大${getMaxImages()}枚までです`, 'error');
             setTimeout(() => clearStatus(), 2000);
         }
     });
@@ -1571,7 +1676,7 @@ if (cameraBtn && cameraFileInput) {
 
 // Handle file selection (with compression for reference images)
 async function handleFileSelect(files) {
-    const remainingSlots = 4 - uploadedImages.length;
+    const remainingSlots = getMaxImages() - uploadedImages.length;
     const filesToAdd = Array.from(files).slice(0, remainingSlots);
 
     for (const file of filesToAdd) {
@@ -1642,7 +1747,7 @@ function updateImagePreview() {
     });
 
     // Add drop zone and camera button to grid when 0-3 images are uploaded
-    if (uploadedImages.length < 4) {
+    if (uploadedImages.length < getMaxImages()) {
         // Calculate drop zone span (4 - number of images)
         const dropZoneSpan = 4 - uploadedImages.length;
 
@@ -1833,6 +1938,27 @@ if (cancelBtn) {
     });
 }
 
+// Turn a fal error body into a readable message
+function formatFalError(errorData) {
+    if (!errorData) return '';
+    const detail = errorData.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+        return detail.map(item => {
+            const where = Array.isArray(item.loc) ? item.loc.filter(part => part !== 'body').join('.') : '';
+            return where ? `${where}: ${item.msg}` : (item.msg || JSON.stringify(item));
+        }).join(' / ');
+    }
+    if (detail) return JSON.stringify(detail);
+    return errorData.message || errorData.error || '';
+}
+
+// How many 5-second polls to wait before giving up
+function getMaxPollingAttempts(model) {
+    const timeoutSec = (model && model.timeoutSec) || 300;
+    return Math.ceil(timeoutSec / 5);
+}
+
 // Call FAL API
 async function callFalAPI(apiKey, params, useEditMode = false, model = getSelectedModelDefinition()) {
     if (!model) {
@@ -1844,7 +1970,10 @@ async function callFalAPI(apiKey, params, useEditMode = false, model = getSelect
     const FAL_API_URL = modeConfig?.endpoint;
 
     if (!FAL_API_URL) {
-        throw new Error(`${model.label} は ${useEditMode ? '画像編集' : '画像生成'} に対応していません`);
+        if (!useEditMode && model.requiresImage) {
+            throw new Error(`${model.label} は参照画像が1枚必要です。参照画像を追加してください`);
+        }
+        throw new Error(`${model.label} は ${useEditMode ? '参照画像ありの生成' : '参照画像なしの生成'} に対応していません`);
     }
 
     const queueBaseUrl = FAL_API_URL.replace(/\/edit$/, '');
@@ -1857,15 +1986,12 @@ async function callFalAPI(apiKey, params, useEditMode = false, model = getSelect
                 'Authorization': `Key ${apiKey}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                ...params,
-                sync_mode: false
-            })
+            body: JSON.stringify(params)
         });
 
         if (!submitResponse.ok) {
-            const errorData = await submitResponse.json();
-            throw new Error(errorData.detail || `HTTP error! status: ${submitResponse.status}`);
+            const errorData = await submitResponse.json().catch(() => ({}));
+            throw new Error(formatFalError(errorData) || `HTTP error! status: ${submitResponse.status}`);
         }
 
         const submitData = await submitResponse.json();
@@ -1883,13 +2009,15 @@ async function callFalAPI(apiKey, params, useEditMode = false, model = getSelect
         });
 
         // Save generation state for recovery
-        saveGenerationState(requestId, statusUrl, resultUrl, params, useEditMode);
+        saveGenerationState(requestId, statusUrl, resultUrl, params, useEditMode, model);
 
-        showStatus('リクエストを送信しました。画像を生成中...', 'info');
+        showStatus(isVideoModel(model)
+            ? 'リクエストを送信しました。動画を生成中...（数分かかります）'
+            : 'リクエストを送信しました。画像を生成中...', 'info');
 
         // Poll for results
         let attempts = 0;
-        const maxAttempts = 60; // 5 minutes max (5s interval)
+        const maxAttempts = getMaxPollingAttempts(model); // timeoutSec / 5s interval
 
         while (attempts < maxAttempts) {
             // Check if cancelled
@@ -1995,112 +2123,45 @@ async function callFalAPI(apiKey, params, useEditMode = false, model = getSelect
     }
 }
 
+// Turn a fal result (images[] or video) into a simple list of items
+function normalizeOutputs(data) {
+    if (!data) return [];
+    const items = [];
+    if (Array.isArray(data.images)) {
+        data.images.forEach(image => image && image.url && items.push({
+            url: image.url, file_name: image.file_name, type: 'image'
+        }));
+    }
+    if (data.video && data.video.url) {
+        items.push({ url: data.video.url, file_name: data.video.file_name, type: 'video' });
+    }
+    if (Array.isArray(data.videos)) {
+        data.videos.forEach(video => video && video.url && items.push({
+            url: video.url, file_name: video.file_name, type: 'video'
+        }));
+    }
+    return items;
+}
+
 // Display results
 function displayResults(data) {
     resultsDiv.innerHTML = '';
 
-    if (!data.images || data.images.length === 0) {
-        showStatus('画像が生成されませんでした', 'error');
+    const items = normalizeOutputs(data);
+    if (items.length === 0) {
+        showStatus('画像・動画が生成されませんでした', 'error');
         return;
     }
 
-    // Save output images to localStorage
-    saveOutputImages(data.images);
+    // Save outputs to localStorage (URLs only)
+    saveOutputImages(items);
+    renderOutputItems(items);
 
-    data.images.forEach((image, index) => {
-        const resultItem = document.createElement('div');
-        resultItem.className = 'result-item';
-
-        const img = document.createElement('img');
-        img.src = image.url;
-        img.alt = `Generated image ${index + 1}`;
-        img.loading = 'lazy';
-
-        const actions = document.createElement('div');
-        actions.className = 'result-actions';
-
-        const downloadLink = document.createElement('a');
-        downloadLink.href = '#';
-        downloadLink.textContent = 'ダウンロード';
-        downloadLink.className = 'download-link';
-        downloadLink.onclick = async (e) => {
-            e.preventDefault();
-            try {
-                // Fetch the image as a blob
-                const response = await fetch(image.url);
-                const blob = await response.blob();
-
-                // Create a temporary URL for the blob
-                const blobUrl = URL.createObjectURL(blob);
-
-                // Create a temporary link and trigger download
-                const tempLink = document.createElement('a');
-                tempLink.href = blobUrl;
-                tempLink.download = image.file_name || `banana-${Date.now()}-${index}.png`;
-                document.body.appendChild(tempLink);
-                tempLink.click();
-                document.body.removeChild(tempLink);
-
-                // Clean up the blob URL
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-            } catch (error) {
-                console.error('Download failed:', error);
-                // Fallback: open in new tab
-                window.open(image.url, '_blank');
-            }
-        };
-
-        // Share button
-        const shareBtn = document.createElement('button');
-        shareBtn.textContent = '共有';
-        shareBtn.className = 'share-btn';
-        shareBtn.onclick = async (e) => {
-            e.preventDefault();
-            try {
-                const response = await fetch(image.url);
-                const blob = await response.blob();
-                const file = new File([blob], image.file_name || `banana-${Date.now()}-${index}.png`, { type: blob.type });
-
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                    });
-                } else if (navigator.share) {
-                    // Fallback: share URL only
-                    await navigator.share({
-                        url: image.url
-                    });
-                } else {
-                    // Web Share API not supported
-                    showStatus('この端末では共有機能が使えません', 'error');
-                    setTimeout(() => clearStatus(), 2000);
-                }
-            } catch (error) {
-                if (error.name !== 'AbortError') {
-                    console.error('Share failed:', error);
-                    showStatus('共有に失敗しました', 'error');
-                    setTimeout(() => clearStatus(), 2000);
-                }
-            }
-        };
-
-        actions.appendChild(downloadLink);
-        actions.appendChild(shareBtn);
-
-        // iOS hint for saving images
-        if (isIOS()) {
-            const iosHint = document.createElement('div');
-            iosHint.className = 'ios-save-hint';
-            iosHint.textContent = '💡 iPhoneは画像を長押しで保存';
-            actions.appendChild(iosHint);
-        }
-
-        resultItem.appendChild(img);
-        resultItem.appendChild(actions);
-        resultsDiv.appendChild(resultItem);
-    });
-
-    showStatus(`${data.images.length}枚の画像を生成しました！`, 'success');
+    const videoCount = items.filter(item => item.type === 'video').length;
+    const imageCount = items.length - videoCount;
+    showStatus(videoCount > 0
+        ? `動画を${videoCount}本生成しました！`
+        : `${imageCount}枚の画像を生成しました！`, 'success');
 
     // Mark generation as displayed to user
     const state = loadGenerationState();
@@ -2146,6 +2207,20 @@ async function generateImages() {
     const useEditMode = uploadedImages.length > 0;
     const selectedModel = getSelectedModelDefinition();
 
+    // Per-model checks before spending credits
+    if (selectedModel && selectedModel.requiresImage && !useEditMode) {
+        showStatus(`${selectedModel.label} は参照画像が1枚必要です。参照画像を追加してください`, 'error');
+        return;
+    }
+    if (uploadedImages.length > getMaxImages(selectedModel)) {
+        showStatus(`このモデルの参照画像は最大${getMaxImages(selectedModel)}枚です。×ボタンで減らしてください`, 'error');
+        return;
+    }
+    const costEstimate = estimateVideoCost(selectedModel);
+    if (costEstimate && !confirm(`動画を生成します。\n目安: 約$${costEstimate.cost.toFixed(2)}（${costEstimate.resolution}・${costEstimate.seconds}秒）\nよろしいですか？`)) {
+        return;
+    }
+
     // Prepare request parameters
     const params = buildRequestParams(selectedModel, prompt, useEditMode);
 
@@ -2189,10 +2264,15 @@ async function generateImages() {
                 }
             }
 
-            params.image_urls = imageUrls;
+            // Some models take a list (image_urls), video models take one image (image_url)
+            if (selectedModel && selectedModel.imageParam === 'image_url') {
+                params.image_url = imageUrls[0];
+            } else {
+                params.image_urls = imageUrls;
+            }
         }
 
-        showStatus('画像生成リクエストを送信中...', 'info');
+        showStatus(isVideoModel(selectedModel) ? '動画生成リクエストを送信中...' : '画像生成リクエストを送信中...', 'info');
         const result = await callFalAPI(apiKey, params, useEditMode, selectedModel);
         console.log('API Result:', result);
 
